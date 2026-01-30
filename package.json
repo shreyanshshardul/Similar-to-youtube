@@ -2,8 +2,9 @@
   "name": "backend-with-chai-and-code",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon src/index.js"
   },
   "keywords": [
     "(javascript",
@@ -13,5 +14,9 @@
   ],
   "author": "Shreyansh",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "nodemon": "^3.1.11"
+  }
 }
