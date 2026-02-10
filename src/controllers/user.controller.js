@@ -5,6 +5,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 
+
 //ye function bana rahe hai access and refresh token generate krne ke liya user ke liya isleya userId dale hai or user._id dalenge jb isko call krenge tb
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -158,7 +159,7 @@ const logoutUser = asyncHandler(async (req, res) => {
       new: true,
     },
   );
-
+//frontend se cookie edit na paiye || cookie security policy.
   let option = {
     httpOnly: true,
     secure: true,
@@ -172,12 +173,13 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
+  //refresh token nekal raha hai
   const incomingRefreshToken =
     req.cookies.refreshToken || req.body.refreshToken;
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Please login again. Fail to access refresh token");
   }
-  try {
+  try {//verify kr raha hu token same hai jwt ke help se
     const decodedToken = jwt.verify(
       incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET,
@@ -188,11 +190,11 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     if (!user) {
       throw new ApiError(401, "Invalid refresh token");
     }
-
+//verify kr raha hu user_token and collected_token same hai.
     if (incomingRefreshToken !== user.refreshToken) {
       throw new ApiError(401, "Refresh token used or expired");
     }
-
+//new refresh_token generate kr rahe hai
     let options = {
       httpOnly: true,
       secure: true,
@@ -310,6 +312,74 @@ const updateCoverImage = asyncHandler(async(req,res)=>{
     .json(new ApiResponse(200 , user , "CoverImage updated successfully"))
 })
 
+const getUserChannelProfile = asyncHandler(async (req,res)=>{
+  let {username} = req.params;//basically mai url se username le raha hu;\
+  if(!username?.trim()){
+    throw new ApiError(400 , "Username not found!")
+  }
+
+  const channel = await User.aggregate([
+    {
+      $match:{
+        username:username?.toLowerCase(),
+      }
+    },
+    {
+      $lookup:{
+        from:"subscriptions",
+        localField:"_id",
+        foreignField:"channel",
+        as:"subscriber"
+      },
+    },
+    {
+      $lookup:{
+        from:"subscriptions",
+        localField:"_id",
+        foreignField:"subscriber",
+        as:"subscribedTo"
+      },
+    },
+    {
+      $addFields:{
+        subscriberCount:{
+          $size:"$subscriber"
+        },
+        channelsSubscribedToCount:{
+          $size :"$subscribedTo"
+        },
+        isSubscribed:{
+          $cond:{
+            if:{$in: [req.user?._id, "subscriber.subscribers"]},
+            then:true,
+            else:false
+          }
+        }
+      }
+    },
+    {   //mai sari chig ni dunga but selected chig dunga
+      $project:{
+          fullname:1,
+          username:1,
+          subscriberCount,
+          channelsSubscribedToCount,
+          isSubscribed,
+          email:1,
+          avator:1,
+          coverImage:1,
+      }
+    }
+  ])
+
+  if(!channel?.length){
+    throw new ApiError(404 , "Account doesn't exist!")
+  }
+
+  return res
+  .status(200)
+  .json(new ApiResponse(200 , channel[0] , "User channel fetched successfully"));
+})
+
 export {
   registerUser,
   loginUser,
@@ -320,4 +390,5 @@ export {
   updateAccountDetails,
   updateAvator,
   updateCoverImage,
+  getUserChannelProfile,
 };
