@@ -5,7 +5,6 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 
-
 //ye function bana rahe hai access and refresh token generate krne ke liya user ke liya isleya userId dale hai or user._id dalenge jb isko call krenge tb
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -159,7 +158,7 @@ const logoutUser = asyncHandler(async (req, res) => {
       new: true,
     },
   );
-//frontend se cookie edit na paiye || cookie security policy.
+  //frontend se cookie edit na paiye || cookie security policy.
   let option = {
     httpOnly: true,
     secure: true,
@@ -179,7 +178,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Please login again. Fail to access refresh token");
   }
-  try {//verify kr raha hu token same hai jwt ke help se
+  try {
+    //verify kr raha hu token same hai jwt ke help se
     const decodedToken = jwt.verify(
       incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET,
@@ -190,11 +190,11 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     if (!user) {
       throw new ApiError(401, "Invalid refresh token");
     }
-//verify kr raha hu user_token and collected_token same hai.
+    //verify kr raha hu user_token and collected_token same hai.
     if (incomingRefreshToken !== user.refreshToken) {
       throw new ApiError(401, "Refresh token used or expired");
     }
-//new refresh_token generate kr rahe hai
+    //new refresh_token generate kr rahe hai
     let options = {
       httpOnly: true,
       secure: true,
@@ -238,7 +238,9 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 });
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-  return res.status(200).json(new ApiResponse(200, req.user, "Current user fetched"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, req.user, "Current user fetched"));
 });
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
@@ -261,165 +263,178 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Account details updated successfully"));
 });
 
-const updateAvator = asyncHandler(async(req,res)=>{
+const updateAvator = asyncHandler(async (req, res) => {
   let avatorPath = req.file?.path;
-  if(!avatorPath){
-    throw new ApiError(401 , "Avator not found")
+  if (!avatorPath) {
+    throw new ApiError(401, "Avator not found");
   }
   //ab clodinary pe upload bhi to kro
   const avator = await uploadOnCloudinary(avatorPath);
-  if(!avator.url){
-    throw new ApiError(404 , "Error while uploading in cloudinary")
+  if (!avator.url) {
+    throw new ApiError(404, "Error while uploading in cloudinary");
   }
-  
-//ab batabase pe update
-  const user = await User.findByIdAndUpdate(req.user?._id , 
+
+  //ab batabase pe update
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
     {
-      $set:{
-        avator:avator.url
-      }
-    }
-     , {new : true}).select("-password")
+      $set: {
+        avator: avator.url,
+      },
+    },
+    { new: true },
+  ).select("-password");
 
-     return res
+  return res
     .status(200)
-    .json(new ApiResponse(200 , user , "Avator updated successfully"))
-})
+    .json(new ApiResponse(200, user, "Avator updated successfully"));
+});
 
-const updateCoverImage = asyncHandler(async(req,res)=>{
+const updateCoverImage = asyncHandler(async (req, res) => {
   let coverImagePath = req.file.path;
-  if(!coverImagePath){
-    throw new ApiError(404 , "Can't find coverImage");
+  if (!coverImagePath) {
+    throw new ApiError(404, "Can't find coverImage");
   }
 
   //ab cloudinary pe upload kro
   const coverImage = uploadOnCloudinary(coverImagePath);
-  if(!coverImage.url){
-    throw new ApiError(404 , "error while uploading on clodinary");
+  if (!coverImage.url) {
+    throw new ApiError(404, "error while uploading on clodinary");
   }
 
   //ab batabase pe updata
-  const user = await User.findByIdAndUpdate(req.user?._id , 
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
     {
-      $set:{
-        coverImage:coverImage.url
-      }
+      $set: {
+        coverImage: coverImage.url,
+      },
     },
-    {new:true}).select("-password")
+    { new: true },
+  ).select("-password");
 
-    return res
+  return res
     .status(200)
-    .json(new ApiResponse(200 , user , "CoverImage updated successfully"))
-})
+    .json(new ApiResponse(200, user, "CoverImage updated successfully"));
+});
 
-const getUserChannelProfile = asyncHandler(async (req,res)=>{
-  let {username} = req.params;//basically mai url se username le raha hu;\
-  if(!username?.trim()){
-    throw new ApiError(400 , "Username not found!")
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  let { username } = req.params; //basically mai url se username le raha hu;\
+  if (!username?.trim()) {
+    throw new ApiError(400, "Username not found!");
   }
 
   const channel = await User.aggregate([
     {
-      $match:{
-        username:username?.toLowerCase(),
-      }
-    },
-    {
-      $lookup:{
-        from:"subscriptions",
-        localField:"_id",
-        foreignField:"channel",
-        as:"subscriber"
+      $match: {
+        username: username?.toLowerCase(),
       },
     },
     {
-      $lookup:{
-        from:"subscriptions",
-        localField:"_id",
-        foreignField:"subscriber",
-        as:"subscribedTo"
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscriber",
       },
     },
     {
-      $addFields:{
-        subscriberCount:{
-          $size:"$subscriber"
-        },
-        channelsSubscribedToCount:{
-          $size :"$subscribedTo"
-        },
-        isSubscribed:{
-          $cond:{
-            if:{$in: [req.user?._id, "subscriber.subscribers"]},
-            then:true,
-            else:false
-          }
-        }
-      }
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo",
+      },
     },
-    {   //mai sari chig ni dunga but selected chig dunga
-      $project:{
-          fullname:1,
-          username:1,
-          subscriberCount,
-          channelsSubscribedToCount,
-          isSubscribed,
-          email:1,
-          avator:1,
-          coverImage:1,
-      }
-    }
-  ])
+    {
+      $addFields: {
+        subscriberCount: {
+          $size: "$subscriber",
+        },
+        channelsSubscribedToCount: {
+          $size: "$subscribedTo",
+        },
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req.user?._id, "subscriber.subscribers"] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      //mai sari chig ni dunga but selected chig dunga
+      $project: {
+        fullname: 1,
+        username: 1,
+        subscriberCount,
+        channelsSubscribedToCount,
+        isSubscribed,
+        email: 1,
+        avator: 1,
+        coverImage: 1,
+      },
+    },
+  ]);
 
-  if(!channel?.length){
-    throw new ApiError(404 , "Account doesn't exist!")
+  if (!channel?.length) {
+    throw new ApiError(404, "Account doesn't exist!");
   }
 
   return res
-  .status(200)
-  .json(new ApiResponse(200 , channel[0] , "User channel fetched successfully"));
-})
+    .status(200)
+    .json(
+      new ApiResponse(200, channel[0], "User channel fetched successfully"),
+    );
+});
 
-const getWatchHistory = asyncHandler(async(req,res)=>{
+const getWatchHistory = asyncHandler(async (req, res) => {
   const user = await User.aggregate([
     {
-      $match:{
-        _id:new mongoose.Types.ObjectId(req.user._id)
-      }
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user._id),
+      },
     },
     {
-      $lookup:{
-        from :"videos",
-        localField:"watchhistory",
-        foreignField:"_id",
-        as:"watchGistory",
-        pipeline:[
+      $lookup: {
+        from: "videos",
+        localField: "watchhistory",
+        foreignField: "_id",
+        as: "watchGistory",
+        pipeline: [
           {
-            $lookup:{
-              from:"users",
-              localFields:"owner",
-              foreignFields:"_id",
-              owner:"owner",
-              pipeline:[
-                  {
-                    $project:{
-                      fullname:1,
-                      username:1,
-                      avator:1,
-                    }
-                  }
-                ]
-            }
-          }
-        ]
-      }
-    }
-  ])
+            $lookup: {
+              from: "users",
+              localFields: "owner",
+              foreignFields: "_id",
+              owner: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullname: 1,
+                    username: 1,
+                    avator: 1,
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ]);
 
   return res
-  .status(200)
-  .json(new ApiResponse(201 , user[0].watchHistory ,"Watch hsitory fetched successfully"));
-})
+    .status(200)
+    .json(
+      new ApiResponse(
+        201,
+        user[0].watchHistory,
+        "Watch hsitory fetched successfully",
+      ),
+    );
+});
 
 export {
   registerUser,
@@ -432,5 +447,4 @@ export {
   updateAvator,
   updateCoverImage,
   getUserChannelProfile,
-  getWatchHistory
 };
